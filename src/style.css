@@ -1,0 +1,240 @@
+@property --accent { syntax: '<color>'; inherits: true; initial-value: #222; }
+
+:root {
+  color-scheme: dark;
+  --sans: 'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, 'Noto Serif KR', serif;
+  --mono: ui-monospace, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+  --paper: #f2f0eb;
+  --night: #0b0b0c;
+  --line: rgba(242, 240, 235, 0.28);
+  --glass: rgba(14, 14, 16, 0.42);
+  --gap: clamp(16px, 2.6vw, 32px);
+  font-family: var(--sans);
+  font-size: 15px;
+  letter-spacing: -0.005em;
+  -webkit-font-smoothing: antialiased;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #000; color: var(--paper); }
+[hidden] { display: none !important; }
+h1, h2, p { margin: 0; }
+
+#stage, #stage canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+
+button {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: inherit;
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.75em 1.35em;
+  cursor: pointer;
+  transition: background-color 200ms, border-color 200ms, color 200ms, transform 140ms, box-shadow 140ms;
+}
+/* Mouse :hover/:active and hand .hand-hover/.hand-press (app.ts) look the same. --pinch (0..1) tightens the
+   halo as the fingers close, so the press is anticipated before it fires. */
+button:hover, button.hand-hover {
+  background: rgba(242, 240, 235, 0.14);
+  border-color: rgba(242, 240, 235, 0.6);
+  box-shadow: 0 0 0 calc(7px - var(--pinch, 0) * 4px) rgba(242, 240, 235, calc(0.1 + var(--pinch, 0) * 0.35));
+  transform: scale(calc(1.05 - var(--pinch, 0) * 0.05));
+}
+button:active, button.hand-press { background: rgba(242, 240, 235, 0.28); border-color: var(--paper); transform: scale(0.94); }
+button:focus-visible, a:focus-visible { outline: 1.5px solid var(--paper); outline-offset: 4px; }
+
+#back {
+  position: fixed; top: var(--gap); left: var(--gap); z-index: 10;
+  width: 48px; height: 48px; padding: 0; font-size: 20px; line-height: 1;
+}
+#tools { position: fixed; top: var(--gap); right: var(--gap); z-index: 10; display: flex; gap: 8px; }
+/* Camera on: hand cursors are coarse, so every shell control grows to an easy pinch target. */
+body.hands-on button { min-height: 64px; padding: 0 1.9em; font-size: 15px; }
+body.hands-on #back { width: 72px; height: 72px; font-size: 26px; }
+body.hands-on #tools { gap: 16px; }
+/* Small, mirrored self-view; off by default so the raw camera image is never prominent. */
+#preview { position: fixed; left: 16px; bottom: 16px; z-index: 10; width: 280px; border-radius: 12px; overflow: hidden; opacity: 0.9; }
+#preview video { display: block; width: 100%; transform: scaleX(-1); }
+#preview canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+/* Faint skeleton of every tracked hand, drawn over all experiences. */
+#hand-guides { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 39; pointer-events: none; }
+
+/* --- main: poster grid with a Dock-style lens --------------------------------------- */
+#main {
+  position: fixed; inset: 0; z-index: 1; overflow: clip;
+  background: var(--night);
+  touch-action: none; user-select: none; -webkit-user-select: none;
+  transition: --accent 700ms ease;
+}
+#main .glow {
+  position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(55% 48% at 50% 46%, var(--accent), transparent 72%);
+  opacity: 0.2;
+}
+/* Vignette, then a static film grain (inline SVG noise, no network). */
+#main::before, #main::after { content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 2; }
+#main::before { background: radial-gradient(120% 90% at 50% 42%, transparent 45%, rgba(0, 0, 0, 0.65)); }
+#main::after {
+  opacity: 0.09; mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .9 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+#main .brand { position: absolute; top: var(--gap); left: var(--gap); z-index: 3; pointer-events: none; }
+#main .brand h1 {
+  font-size: clamp(22px, 2.4vw, 30px); font-weight: 800; letter-spacing: 0.32em; line-height: 1;
+  margin-right: -0.32em;
+}
+#main .brand p { margin-top: 10px; font-size: 13px; opacity: 0.6; letter-spacing: 0.01em; }
+
+#main .caption {
+  position: absolute; left: 50%; bottom: var(--gap); z-index: 3; transform: translateX(-50%);
+  display: flex; align-items: baseline; gap: 14px; white-space: nowrap; pointer-events: none;
+  font-size: 12px; letter-spacing: 0.02em;
+}
+#main .caption .count { font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; padding-right: 14px; border-right: 1px solid var(--line); }
+#main .caption .how { color: rgba(242, 240, 235, 0.55); }
+#main .caption .how b { color: var(--paper); font-weight: 700; }
+
+/* --cols, --pw, --gap come from grid.ts (fit the viewport); the lens scales posters in place. */
+#grid {
+  position: absolute; left: 50%; top: 50%; z-index: 1; transform: translate(-50%, -48%);
+  width: calc(var(--cols) * var(--pw) + (var(--cols) - 1) * var(--gap));
+  display: flex; flex-wrap: wrap; justify-content: center; gap: var(--gap);
+}
+#grid .poster {
+  flex: none; width: var(--pw); aspect-ratio: 3 / 4;
+  container-type: inline-size;
+  border-radius: 2px;
+  background: var(--bg); color: var(--ink);
+  text-decoration: none;
+  transform-origin: 50% 50%;
+  will-change: transform;
+  box-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.55);
+  outline: 2px solid transparent; outline-offset: 14px;
+  transition: outline-color 160ms, outline-offset 160ms;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-drag: none;
+}
+#grid .poster.active { box-shadow: 0 30px 70px -16px rgba(0, 0, 0, 0.7); }
+#grid .poster:focus-visible { outline-color: var(--paper); outline-offset: 8px; }
+/* Hand hover ring closes in on the poster as the fingers close (--pinch from app.ts). */
+#grid .poster.hand-hover { outline-color: rgba(242, 240, 235, 0.9); outline-offset: calc(14px - var(--pinch, 0) * 10px); }
+#grid .poster.hand-press { outline-width: 3px; outline-offset: 2px; }
+@media (hover: hover) { #grid .poster:hover { outline-color: rgba(242, 240, 235, 0.45); } }
+/* Own box: cq units on .poster itself would not resolve against .poster. */
+#grid .face { position: absolute; inset: 0; display: flex; flex-direction: column; padding: 7cqw; }
+#grid .top {
+  display: flex; justify-content: space-between;
+  font-family: var(--mono); font-size: 3.4cqw; letter-spacing: 0.08em; opacity: 0.8;
+}
+#grid .mark { letter-spacing: 0.3em; margin-right: -0.3em; }
+#grid .art { position: relative; flex: 1; min-height: 0; margin: 4cqw 0; display: grid; place-items: center; overflow: hidden; }
+/* Big tonal numeral: the poster's quiet figure until real poster art (public/posters/<id>.webp) exists. */
+#grid .num {
+  font-size: 46cqw; font-weight: 800; line-height: 1; letter-spacing: -0.06em;
+  font-variant-numeric: tabular-nums; opacity: 0.13;
+}
+#grid .art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+#grid .has-art .num { visibility: hidden; }
+#grid .sub {
+  padding-top: 3.2cqw; border-top: 1px solid currentColor;
+  font-size: 5.4cqw; font-weight: 500; letter-spacing: -0.01em;
+}
+#grid .title {
+  margin-top: 1.4cqw;
+  font-size: 12.5cqw; font-weight: 800; line-height: 1.08; letter-spacing: -0.04em;
+  word-break: keep-all; overflow-wrap: anywhere;
+}
+#grid .date { margin-top: 3cqw; font-family: var(--serif); font-style: italic; font-size: 4.4cqw; opacity: 0.8; }
+
+/* --- transition: poster → fullscreen color → piece -------------------------------------------- */
+/* Below the back/tools buttons (z 10) so leaving always stays possible while a piece loads. */
+#curtain { position: fixed; inset: 0; z-index: 9; pointer-events: none; display: grid; place-items: center; }
+#curtain .sheet { position: absolute; inset: 0; background: var(--bg); transform-origin: 50% 50%; will-change: transform; }
+#curtain .label {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 14px;
+  padding: 0 var(--gap); text-align: center; color: var(--ink);
+}
+#curtain .sub { font-size: 12px; font-weight: 500; letter-spacing: 0.3em; text-transform: uppercase; opacity: 0.75; }
+#curtain .title { font-size: clamp(40px, 8vw, 112px); font-weight: 800; line-height: 1; letter-spacing: -0.045em; word-break: keep-all; }
+#curtain .date { font-family: var(--serif); font-style: italic; font-size: 16px; opacity: 0.75; }
+
+/* --- inside a piece --------------------------------------------------------------- */
+#exp-title {
+  position: fixed; right: var(--gap); bottom: var(--gap); z-index: 8; pointer-events: none;
+  display: flex; flex-direction: column; align-items: flex-end; gap: 4px; text-align: right;
+  text-shadow: 0 1px 14px rgba(0, 0, 0, 0.55);
+}
+#exp-title .title { font-size: 14px; font-weight: 700; letter-spacing: -0.01em; }
+#exp-title .sub { font-size: 10px; font-weight: 500; letter-spacing: 0.22em; text-transform: uppercase; opacity: 0.7; }
+
+#hint {
+  position: fixed; left: 50%; bottom: var(--gap); transform: translateX(-50%); z-index: 10;
+  display: flex; gap: 0.7em; align-items: center; padding: 0.55em 1.3em 0.55em 0.9em; border-radius: 999px;
+  background: var(--glass); border: 1px solid var(--line);
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+  font-size: 14px; white-space: nowrap;
+}
+#hint .icon { font-size: 1.5em; line-height: 1; }
+
+#consent {
+  position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 24px;
+  background: rgba(6, 6, 7, 0.62); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+}
+#consent .card {
+  max-width: 520px; padding: 40px 36px 32px; border-radius: 4px;
+  background: rgba(18, 18, 20, 0.92); border: 1px solid var(--line);
+  box-shadow: 0 40px 80px -30px rgba(0, 0, 0, 0.8);
+}
+#consent .eyebrow { font-family: var(--mono); font-size: 11px; letter-spacing: 0.24em; text-transform: uppercase; opacity: 0.55; }
+#consent h2 { margin-top: 18px; font-size: 26px; font-weight: 800; letter-spacing: -0.03em; }
+#consent #consent-desc { margin-top: 12px; line-height: 1.65; opacity: 0.75; word-break: keep-all; }
+/* Big and far apart: a coarse hand cursor must never land on the wrong choice. */
+#consent .actions { display: flex; gap: 40px; flex-wrap: wrap; justify-content: space-between; margin-top: 36px; }
+#consent .actions button { flex: 1 1 160px; min-height: 64px; padding: 0 1.6em; font-size: 15px; }
+#consent-yes { background: var(--paper); color: var(--night); border-color: var(--paper); }
+#consent-yes:hover, #consent-yes.hand-hover { background: #fff; }
+
+#toast {
+  position: fixed; top: var(--gap); left: 50%; transform: translateX(-50%); z-index: 30;
+  max-width: calc(100vw - 32px); padding: 0.7em 1.3em; border-radius: 999px;
+  background: rgba(18, 18, 20, 0.88); border: 1px solid var(--line);
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+  font-size: 13px; text-align: center;
+}
+
+#cursors { position: fixed; inset: 0; z-index: 40; pointer-events: none; }
+/* Hand cursor (app.ts): a ring at the pinch point that shrinks and fills with --p (pinch strength 0..1). */
+#cursors .hc { position: absolute; left: 0; top: 0; }
+#cursors .ring, #cursors .burst {
+  position: absolute; left: -22px; top: -22px; width: 44px; height: 44px; border-radius: 50%;
+}
+#cursors .ring {
+  border: 2px solid rgba(242, 240, 235, 0.85);
+  background: rgba(242, 240, 235, calc(var(--p, 0) * 0.5));
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35), 0 0 14px rgba(0, 0, 0, 0.45);
+  transform: scale(calc(1 - var(--p, 0) * 0.45));
+  transition: border-color 140ms, box-shadow 140ms, background-color 100ms;
+}
+#cursors .hover .ring { border: 3px solid #fff; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35), 0 0 22px rgba(255, 244, 222, 0.6); }
+#cursors .press .ring { background: var(--paper); transform: scale(0.42); }
+#cursors .burst { border: 2px solid var(--paper); opacity: 0; pointer-events: none; }
+
+#nogl { position: fixed; inset: 0; display: grid; place-items: center; text-align: center; padding: 32px; line-height: 1.7; }
+
+.debug { position: fixed; inset: 0; z-index: 50; pointer-events: none; }
+
+@media (max-width: 640px) {
+  #tools button { font-size: 12px; padding: 0.65em 1em; }
+  #main .brand p { display: none; }
+  #main .caption .how { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}

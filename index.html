@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0b0b0c" />
+    <title>MOVE</title>
+  </head>
+  <body>
+    <div id="stage"></div>
+
+    <main id="main" hidden>
+      <div class="glow" aria-hidden="true"></div>
+      <header class="brand">
+        <h1>MOVE</h1>
+        <p>몸짓 하나로 그림이 되는 작은 전시</p>
+      </header>
+      <nav id="grid" aria-label="작품 목록"></nav>
+      <footer class="caption">
+        <span class="count" aria-hidden="true"></span>
+        <span class="how">누른 채 움직여 살펴보고, <b>클릭</b>해서 감상하세요</span>
+      </footer>
+    </main>
+
+    <div id="curtain" aria-hidden="true" hidden>
+      <div class="sheet"></div>
+      <div class="label"><span class="sub"></span><strong class="title"></strong><span class="date"></span></div>
+    </div>
+
+    <p id="exp-title" hidden><span class="title"></span><span class="sub"></span></p>
+
+    <button id="back" data-hand hidden aria-label="뒤로 가기"><span aria-hidden="true">←</span></button>
+    <div id="tools">
+      <button id="hand-view" data-hand hidden>손 표시: 가상 손</button>
+      <button id="preview-toggle" data-hand hidden aria-pressed="false">내 화면 보기</button>
+      <button id="camera" data-hand>카메라로 조작하기</button>
+    </div>
+    <div id="preview" hidden aria-label="내 카메라 미리보기"><canvas></canvas></div>
+    <canvas id="hand-guides" aria-hidden="true"></canvas>
+
+    <p id="hint" hidden><span class="icon" aria-hidden="true"></span><span class="text"></span></p>
+
+    <div id="consent" role="dialog" aria-modal="true" aria-labelledby="consent-title" aria-describedby="consent-desc" hidden>
+      <div class="card">
+        <p class="eyebrow" aria-hidden="true">Camera</p>
+        <h2 id="consent-title">카메라로 체험하기</h2>
+        <p id="consent-desc">영상은 이 기기 안에서만 처리되며 저장하거나 전송하지 않습니다.</p>
+        <div class="actions">
+          <button id="consent-yes" data-hand>카메라 켜기</button>
+          <button id="consent-no" data-hand>마우스/터치로 체험</button>
+        </div>
+      </div>
+    </div>
+
+    <p id="toast" role="status" hidden></p>
+    <div id="cursors"></div>
+
+    <div id="nogl" hidden>
+      <p>이 브라우저는 WebGL2를 지원하지 않습니다.<br />최신 Chrome, Edge, Safari에서 열어 주세요.</p>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
