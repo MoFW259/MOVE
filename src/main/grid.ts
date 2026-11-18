@@ -15,7 +15,7 @@ const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const LENS = reduced ? 0.3 : 0.7; // extra scale right under a cursor
 const RADIUS = 1.5; // lens radius in poster widths
 const EASE = 12; // 1/s, scale follow speed
-const MAX_COLS = 5;
+const MAX_COLS = 8; // 16+ pieces: wider rows keep posters large on landscape screens
 const MAX_PW = 300;
 
 const pad = (k: number) => String(k).padStart(2, '0');
