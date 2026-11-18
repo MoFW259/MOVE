@@ -1,0 +1,6 @@
+node_modules/
+dist/
+# Fetched by `npm run models` (postinstall)
+public/models/
+# Local test clips (Mixkit license), not for the repo
+fixtures/zz-*
